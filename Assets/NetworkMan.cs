@@ -123,10 +123,17 @@ public class NetworkMan : MonoBehaviour
         try
         {
             //What kind of message is this?
-            switch(latestMessage.cmd)
+            string msg = "";
+            switch (latestMessage.cmd)
             {
                 //New client connected
                 case commands.NEW_CLIENT:
+                    ClientInfo newClient = JsonUtility.FromJson<ClientInfo>(returnData);
+
+                    msg = "New client\n";
+                    msg += "IP: " + newClient.IP;
+                    msg += "PORT: " + newClient.PORT;
+                    Debug.Log(msg);
                     break;
                 //Update game with new info
                 case commands.UPDATE:
@@ -135,7 +142,7 @@ public class NetworkMan : MonoBehaviour
                 //Get all clients info
                 case commands.All_CLIENT_INFO:
                     lastestAllClietnsInfo = JsonUtility.FromJson<AllClientsInfo>(returnData);
-                    string msg = "All clients list\n";
+                    msg = "All clients list\n";
 
                     msg += "Number of clients: " + lastestAllClietnsInfo.numOfClients.ToString() + "\n";
 
