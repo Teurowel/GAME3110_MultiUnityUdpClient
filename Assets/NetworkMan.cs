@@ -30,7 +30,11 @@ public class NetworkMan : MonoBehaviour
         //Make OnReceived Function to handle all receving data, pass argument for OnReceived function
         udp.BeginReceive(new AsyncCallback(OnReceived), udp);
 
+
+
         InvokeRepeating("HeartBeat", 1, 1);
+
+        InvokeRepeating("SendPos", 0.5f, 0.5f);
     }
 
     void OnDestroy()
@@ -61,6 +65,8 @@ public class NetworkMan : MonoBehaviour
     [Serializable]
     public class Player
     {
+        public string id;
+
         [Serializable]
         public struct receivedColor
         {
@@ -68,8 +74,16 @@ public class NetworkMan : MonoBehaviour
             public float G;
             public float B;
         }
-        public string id;
-        public receivedColor color;        
+        public receivedColor color;
+
+        [Serializable]
+        public struct V3Pos
+        {
+            public float X;
+            public float Y;
+            public float Z;
+        }
+        public V3Pos pos;
     }
 
     [Serializable]
@@ -91,23 +105,29 @@ public class NetworkMan : MonoBehaviour
         public int PORT;
     }
 
-    [Serializable]
-    public class AllClientsInfo
-    {
-        public int numOfClients;
+    //[Serializable]
+    //public class AllClientsInfo
+    //{
+    //    public int numOfClients;
 
-        public ClientInfo[] allClients;
-    }
+    //    public ClientInfo[] allClients;
+    //}
 
     public Message latestMessage;
     public GameState lastestGameState;
-    public AllClientsInfo lastestAllClietnsInfo;
+    //public AllClientsInfo lastestAllClietnsInfo;
 
     //List of currently connected players
     public List<Player> listOfPlayers = new List<Player>();
     public GameObject userAvatar;
     private bool ShouldSpawnAvatar = false;
     private Player newPlayerInfo = null;
+
+    public Transform playerTransform;
+
+    //To create other cube when enter game
+    private GameState latestAllClientInfo;
+    private bool ShouldSpawnOtherClients = false; 
     void OnReceived(IAsyncResult result)
     {
         // this is what had been passed into BeginReceive as the second parameter from BeginReceive function:
@@ -138,6 +158,7 @@ public class NetworkMan : MonoBehaviour
             {
                 //New client connected
                 case commands.NEW_CLIENT:
+                    Debug.Log("NewClie");
                     Player newClient = JsonUtility.FromJson<Player>(returnData);
 
                     msg = "New client\n";
@@ -159,19 +180,24 @@ public class NetworkMan : MonoBehaviour
                     break;
                 //Get all clients info
                 case commands.All_CLIENT_INFO:
-                    lastestAllClietnsInfo = JsonUtility.FromJson<AllClientsInfo>(returnData);
-                    msg = "All clients list\n";
+                    //lastestAllClietnsInfo = JsonUtility.FromJson<AllClientsInfo>(returnData);
+                    //msg = "All clients list\n";
 
-                    msg += "Number of clients: " + lastestAllClietnsInfo.numOfClients.ToString() + "\n";
+                    //msg += "Number of clients: " + lastestAllClietnsInfo.numOfClients.ToString() + "\n";
 
-                    for (int i = 0; i < lastestAllClietnsInfo.numOfClients; ++i)
-                    {
-                        msg += "Client" + i + "\n";
-                        msg += "IP: " + lastestAllClietnsInfo.allClients[i].IP + "\n";
-                        msg += "PORT: " + lastestAllClietnsInfo.allClients[i].PORT + "\n\n";
-                    }
+                    //for (int i = 0; i < lastestAllClietnsInfo.numOfClients; ++i)
+                    //{
+                    //    msg += "Client" + i + "\n";
+                    //    msg += "IP: " + lastestAllClietnsInfo.allClients[i].IP + "\n";
+                    //    msg += "PORT: " + lastestAllClietnsInfo.allClients[i].PORT + "\n\n";
+                    //}
 
-                    Debug.Log(msg);
+                    //Debug.Log(msg);
+
+                    //Save all client info to create cube
+                    latestAllClientInfo = JsonUtility.FromJson<GameState>(returnData);
+                    ShouldSpawnOtherClients = true;
+
                     break;
                 case commands.DISCONNECTED_CLIENT:
                     ClientInfo disconnectedClient = JsonUtility.FromJson<ClientInfo>(returnData);
@@ -196,6 +222,7 @@ public class NetworkMan : MonoBehaviour
         socket.BeginReceive(new AsyncCallback(OnReceived), socket);
     }
 
+    //Spawn new player
     void SpawnPlayers()
     {
         if(ShouldSpawnAvatar == true && newPlayerInfo != null)
@@ -209,7 +236,9 @@ public class NetworkMan : MonoBehaviour
 
     void UpdatePlayers()
     {
+       // lastestGameState
 
+       // listOfPlayers
     }
 
     void DestroyPlayers()
@@ -223,12 +252,42 @@ public class NetworkMan : MonoBehaviour
         udp.Send(sendBytes, sendBytes.Length);
         //Debug.Log("HeartBeat");
     }
+    
+    //Send position to server
+    void SendPos()
+    {
+        string pos = "position " + playerTransform.position.x.ToString() + " " +
+                                   playerTransform.position.y.ToString() + " " +
+                                   playerTransform.position.z.ToString() + " ";
+        Byte[] sendBytes = Encoding.ASCII.GetBytes(pos);
+        udp.Send(sendBytes, sendBytes.Length);
+    }
 
     void Update()
     {
         SpawnPlayers();
         UpdatePlayers();
         DestroyPlayers();
+
+
+        SpawnOtherClient();
+    }
+
+    //Spawn existed players
+    void SpawnOtherClient()
+    {
+        if( ShouldSpawnOtherClients == true)
+        {
+            for(int i = 0; i < latestAllClientInfo.players.Length; ++i)
+            {
+                Player client = latestAllClientInfo.players[i];
+
+                GameObject newAvatar = Instantiate(userAvatar, new Vector3(client.pos.X, client.pos.Y, client.pos.Z), new Quaternion(0, 0, 0, 0));
+                newAvatar.GetComponent<ClientAvatarInfo>().id = newPlayerInfo.id;
+            }
+
+            ShouldSpawnOtherClients = false;
+        }
     }
 
     void CreatePlayer()
