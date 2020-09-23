@@ -455,6 +455,8 @@ MonoBehaviour:
     numOfClients: 0
     allClients: []
   listOfPlayers: []
+  userAvatar: {fileID: 2443351928249137501, guid: ddb92dc0e57230848bf70be15685f953,
+    type: 3}
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0

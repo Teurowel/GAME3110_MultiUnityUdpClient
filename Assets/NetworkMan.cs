@@ -105,6 +105,9 @@ public class NetworkMan : MonoBehaviour
 
     //List of currently connected players
     public List<Player> listOfPlayers = new List<Player>();
+    public GameObject userAvatar;
+    private bool ShouldSpawnAvatar = false;
+    private Player newPlayerInfo = null;
     void OnReceived(IAsyncResult result)
     {
         // this is what had been passed into BeginReceive as the second parameter from BeginReceive function:
@@ -141,7 +144,13 @@ public class NetworkMan : MonoBehaviour
                     msg += "ID: " + newClient.id;
                     Debug.Log(msg);
 
+                    //Add newclient to list
                     listOfPlayers.Add(newClient);
+
+                    //Spawn new userAvatar
+                    ShouldSpawnAvatar = true;
+                    newPlayerInfo = newClient;
+                    //Instantiate(userAvatar, new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 0));
 
                     break;
                 //Update game with new info
@@ -189,7 +198,13 @@ public class NetworkMan : MonoBehaviour
 
     void SpawnPlayers()
     {
-
+        if(ShouldSpawnAvatar == true && newPlayerInfo != null)
+        {
+            GameObject newAvatar = Instantiate(userAvatar, new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 0));
+            newAvatar.GetComponent<ClientAvatarInfo>().id = newPlayerInfo.id;
+            ShouldSpawnAvatar = false;
+            newPlayerInfo = null;
+        }
     }
 
     void UpdatePlayers()
@@ -214,5 +229,10 @@ public class NetworkMan : MonoBehaviour
         SpawnPlayers();
         UpdatePlayers();
         DestroyPlayers();
+    }
+
+    void CreatePlayer()
+    {
+        
     }
 }
