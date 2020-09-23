@@ -20,6 +20,7 @@ public class NetworkMan : MonoBehaviour
         //udp.Connect("ec2-3-15-221-96.us-east-2.compute.amazonaws.com", 12345);
         udp.Connect("localhost", 12345);
 
+        
 
         //Send data
         //We can only send Byte type so we need to convert data to Bytes
@@ -29,7 +30,7 @@ public class NetworkMan : MonoBehaviour
 
         //Make OnReceived Function to handle all receving data, pass argument for OnReceived function
         udp.BeginReceive(new AsyncCallback(OnReceived), udp);
-
+  
 
 
         InvokeRepeating("HeartBeat", 1, 1);
@@ -53,7 +54,8 @@ public class NetworkMan : MonoBehaviour
         NEW_CLIENT,
         UPDATE,
         All_CLIENT_INFO,
-        DISCONNECTED_CLIENT
+        DISCONNECTED_CLIENT,
+        SENDER_IP_PORT
     };
     
     [Serializable]
@@ -113,15 +115,23 @@ public class NetworkMan : MonoBehaviour
     //    public ClientInfo[] allClients;
     //}
 
+    public string myIP = null;
+    public int myPORT;
+    private bool ShouldSetIP = false;
+
     public Message latestMessage;
     public GameState lastestGameState;
     //public AllClientsInfo lastestAllClietnsInfo;
 
     //List of currently connected players
-    public List<Player> listOfPlayers = new List<Player>();
+    //public List<Player> listOfPlayers = new List<Player>();
+    private Dictionary<string, GameObject> listOfPlayers = new Dictionary<string, GameObject>();
+    //private List<GameObject> listOfPlayer = new List<GameObject>();
     public GameObject userAvatar;
+
+    //TO create new player
     private bool ShouldSpawnAvatar = false;
-    private Player newPlayerInfo = null;
+    Player latestPlayerInfo = null;
 
     public Transform playerTransform;
 
@@ -158,21 +168,16 @@ public class NetworkMan : MonoBehaviour
             {
                 //New client connected
                 case commands.NEW_CLIENT:
-                    Debug.Log("NewClie");
-                    Player newClient = JsonUtility.FromJson<Player>(returnData);
+                    Debug.Log("NewClient");
+                    latestPlayerInfo = JsonUtility.FromJson<Player>(returnData);
 
-                    msg = "New client\n";
-                    msg += "ID: " + newClient.id;
-                    Debug.Log(msg);
-
-                    //Add newclient to list
-                    listOfPlayers.Add(newClient);
+                    //msg = "New client\n";
+                    //msg += "ID: " + newClient.id;
+                    //Debug.Log(msg);
 
                     //Spawn new userAvatar
                     ShouldSpawnAvatar = true;
-                    newPlayerInfo = newClient;
                     //Instantiate(userAvatar, new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 0));
-
                     break;
                 //Update game with new info
                 case commands.UPDATE:
@@ -180,6 +185,7 @@ public class NetworkMan : MonoBehaviour
                     break;
                 //Get all clients info
                 case commands.All_CLIENT_INFO:
+                    Debug.Log("All client info");
                     //lastestAllClietnsInfo = JsonUtility.FromJson<AllClientsInfo>(returnData);
                     //msg = "All clients list\n";
 
@@ -207,6 +213,12 @@ public class NetworkMan : MonoBehaviour
                     msg += "PORT: " + disconnectedClient.PORT;
                     Debug.Log(msg);
                     break;
+                case commands.SENDER_IP_PORT:
+                    ClientInfo clientIPPORT = JsonUtility.FromJson<ClientInfo>(returnData);
+                    myIP = clientIPPORT.IP;
+                    myPORT = clientIPPORT.PORT;
+                    ShouldSetIP = true;
+                    break;
                 default:
                     Debug.Log("Error");
                     break;
@@ -225,20 +237,36 @@ public class NetworkMan : MonoBehaviour
     //Spawn new player
     void SpawnPlayers()
     {
-        if(ShouldSpawnAvatar == true && newPlayerInfo != null)
+        if(ShouldSpawnAvatar == true)
         {
-            GameObject newAvatar = Instantiate(userAvatar, new Vector3(0, 0, 0), new Quaternion(0, 0, 0, 0));
-            newAvatar.GetComponent<ClientAvatarInfo>().id = newPlayerInfo.id;
+            GameObject newPlayer = Instantiate(userAvatar, new Vector3(latestPlayerInfo.pos.X, latestPlayerInfo.pos.Y, latestPlayerInfo.pos.Z), new Quaternion(0, 0, 0, 0));
+            newPlayer.GetComponent<ClientAvatarInfo>().id = latestPlayerInfo.id;
+            //newPlayer.GetComponent<Material>().color = new Color(latestPlayerInfo.color.R, latestPlayerInfo.color.G, latestPlayerInfo.color.B);
+
+            listOfPlayers.Add(latestPlayerInfo.id, newPlayer);
+
             ShouldSpawnAvatar = false;
-            newPlayerInfo = null;
         }
     }
 
     void UpdatePlayers()
     {
-       // lastestGameState
+        for(int i = 0; i < lastestGameState.players.Length; ++i)
+        {
+            Player info = lastestGameState.players[i];
 
-       // listOfPlayers
+            string id = "(\'" + myIP + "\', " + myPORT.ToString() + ")";
+            
+            //if this info is mine.. skip
+            if(info.id == id)
+            {
+                continue;
+            }
+            else
+            {
+                listOfPlayers[info.id].transform.position = new Vector3(info.pos.X, info.pos.Y, info.pos.Z);
+            }
+        }
     }
 
     void DestroyPlayers()
@@ -271,6 +299,13 @@ public class NetworkMan : MonoBehaviour
 
 
         SpawnOtherClient();
+
+        if(ShouldSetIP == true)
+        {
+            playerTransform.GetComponentInChildren<TextMesh>().text = myIP + " " + myPORT.ToString();
+
+            ShouldSetIP = false;
+        }
     }
 
     //Spawn existed players
@@ -280,10 +315,13 @@ public class NetworkMan : MonoBehaviour
         {
             for(int i = 0; i < latestAllClientInfo.players.Length; ++i)
             {
-                Player client = latestAllClientInfo.players[i];
+                Player clientInfo = latestAllClientInfo.players[i];
 
-                GameObject newAvatar = Instantiate(userAvatar, new Vector3(client.pos.X, client.pos.Y, client.pos.Z), new Quaternion(0, 0, 0, 0));
-                newAvatar.GetComponent<ClientAvatarInfo>().id = newPlayerInfo.id;
+                GameObject newPlayer = Instantiate(userAvatar, new Vector3(clientInfo.pos.X, clientInfo.pos.Y, clientInfo.pos.Z), new Quaternion(0, 0, 0, 0));
+                newPlayer.GetComponent<ClientAvatarInfo>().id = clientInfo.id;
+                //newPlayer.GetComponent<Material>().color = new Color(clientInfo.color.R, clientInfo.color.G, clientInfo.color.B);
+
+                listOfPlayers.Add(clientInfo.id, newPlayer);
             }
 
             ShouldSpawnOtherClients = false;
