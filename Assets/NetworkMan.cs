@@ -17,8 +17,8 @@ public class NetworkMan : MonoBehaviour
         udp = new UdpClient();
 
         //Set socket to connet server
-        //udp.Connect("ec2-3-15-221-96.us-east-2.compute.amazonaws.com", 12345);
-        udp.Connect("localhost", 12345);
+        udp.Connect("ec2-3-15-221-96.us-east-2.compute.amazonaws.com", 12345);
+        //udp.Connect("localhost", 12345);
 
         
 
@@ -35,7 +35,7 @@ public class NetworkMan : MonoBehaviour
 
         InvokeRepeating("HeartBeat", 1, 1);
 
-        InvokeRepeating("SendPos", 0.5f, 0.5f);
+        InvokeRepeating("SendPos", 0.01f, 0.01f);
     }
 
     void OnDestroy()
