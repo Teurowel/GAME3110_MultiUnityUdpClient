@@ -35,7 +35,10 @@ public class NetworkMan : MonoBehaviour
 
     void OnDestroy()
     {
-        udp.Dispose();
+        Debug.Log("Close socket");
+        CancelInvoke();
+        udp.Close();
+        //udp.Dispose();
     }
 
 
@@ -45,7 +48,8 @@ public class NetworkMan : MonoBehaviour
     {
         NEW_CLIENT,
         UPDATE,
-        All_CLIENT_INFO
+        All_CLIENT_INFO,
+        DISCONNECTED_CLIENT
     };
     
     [Serializable]
@@ -98,6 +102,9 @@ public class NetworkMan : MonoBehaviour
     public Message latestMessage;
     public GameState lastestGameState;
     public AllClientsInfo lastestAllClietnsInfo;
+
+    //List of currently connected players
+    public List<Player> listOfPlayers = new List<Player>();
     void OnReceived(IAsyncResult result)
     {
         // this is what had been passed into BeginReceive as the second parameter from BeginReceive function:
@@ -128,12 +135,14 @@ public class NetworkMan : MonoBehaviour
             {
                 //New client connected
                 case commands.NEW_CLIENT:
-                    ClientInfo newClient = JsonUtility.FromJson<ClientInfo>(returnData);
+                    Player newClient = JsonUtility.FromJson<Player>(returnData);
 
                     msg = "New client\n";
-                    msg += "IP: " + newClient.IP;
-                    msg += "PORT: " + newClient.PORT;
+                    msg += "ID: " + newClient.id;
                     Debug.Log(msg);
+
+                    listOfPlayers.Add(newClient);
+
                     break;
                 //Update game with new info
                 case commands.UPDATE:
@@ -153,6 +162,14 @@ public class NetworkMan : MonoBehaviour
                         msg += "PORT: " + lastestAllClietnsInfo.allClients[i].PORT + "\n\n";
                     }
 
+                    Debug.Log(msg);
+                    break;
+                case commands.DISCONNECTED_CLIENT:
+                    ClientInfo disconnectedClient = JsonUtility.FromJson<ClientInfo>(returnData);
+                    
+                    msg = "disconnected client\n";
+                    msg += "IP: " + disconnectedClient.IP + "\n";
+                    msg += "PORT: " + disconnectedClient.PORT;
                     Debug.Log(msg);
                     break;
                 default:
@@ -189,6 +206,7 @@ public class NetworkMan : MonoBehaviour
     {
         Byte[] sendBytes = Encoding.ASCII.GetBytes("heartbeat");
         udp.Send(sendBytes, sendBytes.Length);
+        //Debug.Log("HeartBeat");
     }
 
     void Update()
