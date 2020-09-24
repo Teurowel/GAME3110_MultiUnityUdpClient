@@ -36,6 +36,9 @@ public class NetworkMan : MonoBehaviour
         InvokeRepeating("HeartBeat", 1, 1);
 
         InvokeRepeating("SendPos", 0.01f, 0.01f);
+
+        
+        
     }
 
     void OnDestroy()
@@ -101,6 +104,12 @@ public class NetworkMan : MonoBehaviour
     }
 
     [Serializable]
+    public class DisconnectedClientID
+    {
+        public string id;
+    }
+
+    [Serializable]
     public class ClientInfo
     {
         public string IP;
@@ -137,7 +146,11 @@ public class NetworkMan : MonoBehaviour
 
     //To create other cube when enter game
     private GameState latestAllClientInfo;
-    private bool ShouldSpawnOtherClients = false; 
+    private bool ShouldSpawnOtherClients = false;
+
+    //TO delete disconnected client
+    private string latestDisconnectedClientID;
+    private bool ShouldDeleteClient = false;
     void OnReceived(IAsyncResult result)
     {
         // this is what had been passed into BeginReceive as the second parameter from BeginReceive function:
@@ -171,9 +184,9 @@ public class NetworkMan : MonoBehaviour
                     Debug.Log("NewClient");
                     latestPlayerInfo = JsonUtility.FromJson<Player>(returnData);
 
-                    //msg = "New client\n";
-                    //msg += "ID: " + newClient.id;
-                    //Debug.Log(msg);
+                    msg = "New client connected!\n";
+                    msg += "ID: " + latestPlayerInfo.id;
+                    Debug.Log(msg);
 
                     //Spawn new userAvatar
                     ShouldSpawnAvatar = true;
@@ -184,8 +197,7 @@ public class NetworkMan : MonoBehaviour
                     lastestGameState = JsonUtility.FromJson<GameState>(returnData);
                     break;
                 //Get all clients info
-                case commands.All_CLIENT_INFO:
-                    Debug.Log("All client info");
+                case commands.All_CLIENT_INFO:                   
                     //lastestAllClietnsInfo = JsonUtility.FromJson<AllClientsInfo>(returnData);
                     //msg = "All clients list\n";
 
@@ -202,16 +214,35 @@ public class NetworkMan : MonoBehaviour
 
                     //Save all client info to create cube
                     latestAllClientInfo = JsonUtility.FromJson<GameState>(returnData);
+
+                    msg = "All clients list\n";
+
+                    for (int i = 0; i < latestAllClientInfo.players.Length; ++i)
+                    {
+                        msg += "Client" + (i + 1) + "\n";
+                        msg += "ID: " + latestAllClientInfo.players[i].id + "\n\n";
+                    }
+
+                    Debug.Log(msg);
+
                     ShouldSpawnOtherClients = true;
 
                     break;
                 case commands.DISCONNECTED_CLIENT:
-                    ClientInfo disconnectedClient = JsonUtility.FromJson<ClientInfo>(returnData);
+                    DisconnectedClientID disconnectedClientID = JsonUtility.FromJson<DisconnectedClientID>(returnData);
+
+                    //msg = "disconnected client\n";
+                    //msg += "IP: " + disconnectedClient.IP + "\n";
+                    //msg += "PORT: " + disconnectedClient.PORT;
+                    //Debug.Log(msg);
+
+                    Debug.Log("Disconnected Client: " + disconnectedClientID.id);
+
+                    latestDisconnectedClientID = disconnectedClientID.id;
+                    ShouldDeleteClient = true;
+
                     
-                    msg = "disconnected client\n";
-                    msg += "IP: " + disconnectedClient.IP + "\n";
-                    msg += "PORT: " + disconnectedClient.PORT;
-                    Debug.Log(msg);
+
                     break;
                 case commands.SENDER_IP_PORT:
                     ClientInfo clientIPPORT = JsonUtility.FromJson<ClientInfo>(returnData);
@@ -256,15 +287,22 @@ public class NetworkMan : MonoBehaviour
             Player info = lastestGameState.players[i];
 
             string id = "(\'" + myIP + "\', " + myPORT.ToString() + ")";
+
             
+
             //if this info is mine.. skip
-            if(info.id == id)
+            if (info.id == id)
             {
+                playerTransform.GetComponent<Renderer>().material.color = new Color(info.color.R, info.color.G, info.color.B);
                 continue;
             }
             else
             {
-                listOfPlayers[info.id].transform.position = new Vector3(info.pos.X, info.pos.Y, info.pos.Z);
+                if (listOfPlayers.ContainsKey(info.id) == true)
+                {
+                    listOfPlayers[info.id].transform.position = new Vector3(info.pos.X, info.pos.Y, info.pos.Z);
+                    listOfPlayers[info.id].transform.GetComponent<Renderer>().material.color = new Color(info.color.R, info.color.G, info.color.B);
+                }
             }
         }
     }
@@ -300,11 +338,24 @@ public class NetworkMan : MonoBehaviour
 
         SpawnOtherClient();
 
+        //Setting IP and PORt of mine
         if(ShouldSetIP == true)
         {
             playerTransform.GetComponentInChildren<TextMesh>().text = myIP + " " + myPORT.ToString();
 
             ShouldSetIP = false;
+        }
+
+        //Delete disconnected client
+        if (ShouldDeleteClient == true)
+        {
+            if (listOfPlayers.ContainsKey(latestDisconnectedClientID) == true)
+            {
+                Destroy(listOfPlayers[latestDisconnectedClientID]);
+                listOfPlayers.Remove(latestDisconnectedClientID);
+            }
+            
+            ShouldDeleteClient = false;
         }
     }
 
