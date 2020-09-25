@@ -89,6 +89,9 @@ public class NetworkMan : MonoBehaviour
             public float Z;
         }
         public V3Pos pos;
+
+
+        public V3Pos rot;
     }
 
     [Serializable]
@@ -301,6 +304,7 @@ public class NetworkMan : MonoBehaviour
                 if (listOfPlayers.ContainsKey(info.id) == true)
                 {
                     listOfPlayers[info.id].transform.position = new Vector3(info.pos.X, info.pos.Y, info.pos.Z);
+                    listOfPlayers[info.id].transform.eulerAngles = new Vector3(info.rot.X, info.rot.Y, info.rot.Z);
                     listOfPlayers[info.id].transform.GetComponent<Renderer>().material.color = new Color(info.color.R, info.color.G, info.color.B);
                 }
             }
@@ -326,6 +330,14 @@ public class NetworkMan : MonoBehaviour
                                    playerTransform.position.y.ToString() + " " +
                                    playerTransform.position.z.ToString() + " ";
         Byte[] sendBytes = Encoding.ASCII.GetBytes(pos);
+        udp.Send(sendBytes, sendBytes.Length);
+
+
+        string rot = "rotation " + playerTransform.rotation.eulerAngles.x.ToString() + " " +
+                                   playerTransform.rotation.eulerAngles.y.ToString() + " " +
+                                   playerTransform.rotation.eulerAngles.z.ToString() + " ";
+
+        sendBytes = Encoding.ASCII.GetBytes(rot);
         udp.Send(sendBytes, sendBytes.Length);
     }
 

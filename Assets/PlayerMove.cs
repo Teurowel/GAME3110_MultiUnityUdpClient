@@ -17,7 +17,9 @@ public class PlayerMove : MonoBehaviour
     {
         //rb.AddForce(new Vector3(Input.GetAxis("Horizontal") * speed * Time.deltaTime, 0, 0), ForceMode.VelocityChange);
         //rb.AddForce(new Vector3(0, 0, Input.GetAxis("Vertical") * speed * Time.deltaTime), ForceMode.VelocityChange);
-        transform.Translate(new Vector3(Input.GetAxis("Horizontal") * speed * Time.deltaTime, 0, 0));
+        //transform.Translate(new Vector3(Input.GetAxis("Horizontal") * speed * Time.deltaTime, 0, 0));
         transform.Translate(new Vector3(0, 0, Input.GetAxis("Vertical") * speed * Time.deltaTime));
+
+        transform.Rotate(new Vector3(0, Input.GetAxis("Horizontal") * speed * 20* Time.deltaTime, 0));
     }
 }
